@@ -1,1 +1,2 @@
-# University-of-Washington-Ion-Trapping
+# uw_ions
+
