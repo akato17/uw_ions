@@ -2,7 +2,7 @@
 """
 Created on Fri May  1 10:29:28 2020
 
-@author: barium
+@author: Alex Kato
 """
 import numpy as np
 import MDfunc as md
@@ -17,10 +17,15 @@ from scipy.constants import physical_constants
 import matplotlib.pyplot as plt
 from numba import njit, prange
 import scipy.integrate as INT
+from tkinter.filedialog import askopenfilename
+import tkinter
 
 import time
 ##number of ions
-N=28
+N=5
+###load file
+load_file=False
+
 
 path='change_name.npy'
 M=physical_constants['atomic mass constant'][0]
@@ -87,7 +92,7 @@ Tb=500
 ###temperature of virtual gas
 
 ###size of grid where initial positions may start
-start_area=100e-6
+start_area=200e-6
 
 """
 if using collisions method of damping
@@ -102,33 +107,37 @@ sigma=np.sqrt(k*T/(2*mg))
 t_int=5e-9
 ###########################if not loading from a file
 ####total time
-Tfinal=.0075
+Tfinal=.005
 ####timestep at which to record data (cant be lower than t_int and should be a multiple of it)
 t_step=10e-9
 ####time variable to start at (so you don't record the whole cooling part if you don;t want to)
-t_start=.005
+t_start=.000
 #####times at which to record data
 trange=[0,Tfinal]
 t2=np.arange(t_start, Tfinal, t_int)
 # IC=md.initialize_ions(N,start_area,Tb)
 IC=md.initialize_ions(N,start_area,Tb)
 IC2=md.initialize_ions_noz(N,start_area,Tb)
-
-in_path="28 ions periodic.npy"
-data_load=np.load(in_path,allow_pickle=True)
-eq=np.array(data_load[1][:,-1])
-tSTART=data_load[0][-1]
-trange3=[tSTART,tSTART+Tfinal]
-t3=np.arange(tSTART+.14, Tfinal+tSTART, 2*t_step)
-# the start time is the last time interval of the prvious simulation
-#free up some RAM if you had input a large file
-del data_load
+###if you were loading a file
+if load_file==True:
+      root=tkinter.Tk()
+      filename = askopenfilename()
+      root.destroy()
+      # in_path="28 ions periodic.npy"
+      data_load=np.load(filename,allow_pickle=True)
+      eq=np.array(data_load[1][:,-1])
+      tSTART=data_load[0][-1]
+      trange=[tSTART,tSTART+Tfinal]
+      t2=np.arange(tSTART+.14, Tfinal+tSTART, 2*t_step)
+      # the start time is the last time interval of the prvious simulation
+      #free up some RAM if you had input a large file
+      del data_load
 
 start=time.time()
 print("start")
 
 # 
-P = INT.solve_ivp(lambda t, y: Newton5(t,y,N), trange, y0=IC2, t_eval=t2, method='RK45',max_step=t_int)
+P = INT.solve_ivp(lambda t, y: Newton5(t,y,N), trange, y0=IC, t_eval=t2, method='RK23',max_step=t_int)
 print(time.time()-start)
 #####if using solve_ivp
 xcord=np.zeros(N)
