@@ -31,6 +31,39 @@ kappa=e**2/(4*np.pi*epsilon_0)
 wav=493e-9
 #laser wave number
 k_number=2*np.pi/wav
+# -*- coding: utf-8 -*-
+"""
+
+
+@author: Alex Kato
+"""
+import numpy as np
+from scipy.constants import e
+from scipy.constants import epsilon_0
+from scipy.constants import k
+from scipy.constants import c
+from scipy.constants import hbar
+from scipy.constants import h
+from scipy.constants import physical_constants
+from numba import njit, prange
+
+
+####filename for saving
+
+"""
+Input constants here
+"""
+##mass of barioum 138
+# N=7
+M=physical_constants['atomic mass constant'][0]
+mb=138*M
+####constant for calculating the coulomb force
+kappa=e**2/(4*np.pi*epsilon_0)
+
+###laser wavelength
+wav=493e-9
+#laser wave number
+k_number=2*np.pi/wav
 ###wave vector
 k_vect=1/np.sqrt(3)*np.array((1,1,1))
 K=k_vect*k_number
@@ -38,7 +71,7 @@ K=k_vect*k_number
 freq=c/wav
 ##delta i.e. detuning
 ####excited state lifetime for p1/2 state
-tau=10e-9 ####I need an actual referenece for this
+tau=8.1e-9 ####I need an actual referenece for this
 ####gamma
 gamma=1/tau
 ###saturation intensity
@@ -46,7 +79,7 @@ Isat=np.pi*h*c/(3*wav**2*tau)
 ####laser intensity
 I=.5*Isat
 # I=0
-delta=-0.1*gamma
+delta=-0.5*gamma
 
 ###saturation parameter
 s0=I/Isat
@@ -120,20 +153,20 @@ t2=np.arange(t_start, Tfinal, 2*t_step)
 #### total time you want to simulate
 tsweep=.005
 
-in_path = '28 ions periodic.npy'
-data_load=np.load(in_path,allow_pickle=True)
-eq=data_load[1][:,-1]
-tSTART=data_load[0][-1]
+# in_path = '28 ions periodic.npy'
+# data_load=np.load(in_path,allow_pickle=True)
+# eq=data_load[1][:,-1]
+# tSTART=data_load[0][-1]
 # the start time is the last time interval of the prvious simulation
 #free up some RAM if you had input a large file
-del data_load
+# del data_load
 
-TFIN=tsweep+tSTART
+# TFIN=tsweep+tSTART
 ####times to record
-t3=np.arange(tSTART,tSTART+ tsweep, 20e-9)
-fstart=.055e6
-fsweep=.5e6
-F=(t3-tSTART)*fsweep/tsweep+fstart
+# t3=np.arange(tSTART,tSTART+ tsweep, 20e-9)
+# fstart=.055e6
+# fsweep=.5e6
+# F=(t3-tSTART)*fsweep/tsweep+fstart
 ######DC params
 Vend=20
 az=-16*e*Vend/((mb*np.sqrt(r0**2+2*z0**2))*omega**2)
@@ -155,9 +188,9 @@ def stray_field(N,t):
       '''
       simple function that returns a force due to stray dc field
       '''
-      start=fstart*2*np.pi
-      slope=fsweep*2*np.pi/tsweep
-      freq=slope*(t-tSTART)+start
+      # start=fstart*2*np.pi
+      # slope=fsweep*2*np.pi/tsweep
+      # freq=slope*(t-tSTART)+start
       F=np.zeros(3*N)
       E=10
       F-= e*E*np.cos(freq*t)
@@ -311,8 +344,11 @@ def laser_vect(V,N):
       # delta=0
       S=s0/(1+(2*delta/gamma)**2)
       # S=np.zeros((N,1))
+            #####################leave out F0 for now
+
       F0=hbar*K*gamma/2*S/(1+S)
       F+=F0
+      #################################
       #calculate recoil
       #F+=hbar*S/(1+S)*(.5*gamma*K)
       
@@ -328,6 +364,7 @@ def laser_vect(V,N):
       # F-=Beta*np.kron(vel.dot(k_vect),k_vect)
       F-=Beta
       return F
+'''laser sweep function comment out for now
 @njit
 def laser_sweep(V,N,t):
       # initialize output array
@@ -366,6 +403,7 @@ def laser_sweep(V,N,t):
       # F-=Beta*np.kron(vel.dot(k_vect),k_vect)
       F-=Beta
       return F
+'''
       
 # evens = [ i for i in range(10) if i%2 == 0]
 @njit
@@ -749,6 +787,10 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
 # ax.set_zlim3d(-30e-6,30e-6)
 # ax.scatter3D(xcord, ycord, zcord)
 # np.save(path,(P.t,P.y))
+
+
+
+
 
 
 
