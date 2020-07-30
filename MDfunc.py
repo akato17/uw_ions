@@ -5,60 +5,17 @@
 @author: Alex Kato
 """
 import numpy as np
-from scipy.constants import e
-from scipy.constants import epsilon_0
-from scipy.constants import k
-from scipy.constants import c
-from scipy.constants import hbar
-from scipy.constants import h
-from scipy.constants import physical_constants
+import mdconst as mc
 from numba import njit, prange
 
 
-####filename for saving
 
 """
 Input constants here
 """
-##mass of barioum 138
-# N=7
-M=physical_constants['atomic mass constant'][0]
-mb=138*M
+
 ####constant for calculating the coulomb force
-kappa=e**2/(4*np.pi*epsilon_0)
-
-###laser wavelength
-wav=493e-9
-#laser wave number
-k_number=2*np.pi/wav
-# -*- coding: utf-8 -*-
-"""
-
-
-@author: Alex Kato
-"""
-import numpy as np
-from scipy.constants import e
-from scipy.constants import epsilon_0
-from scipy.constants import k
-from scipy.constants import c
-from scipy.constants import hbar
-from scipy.constants import h
-from scipy.constants import physical_constants
-from numba import njit, prange
-
-
-####filename for saving
-
-"""
-Input constants here
-"""
-##mass of barioum 138
-# N=7
-M=physical_constants['atomic mass constant'][0]
-mb=138*M
-####constant for calculating the coulomb force
-kappa=e**2/(4*np.pi*epsilon_0)
+kappa=mc.e**2/(4*np.pi*mc.epsilon_0)
 
 ###laser wavelength
 wav=493e-9
@@ -68,18 +25,20 @@ k_number=2*np.pi/wav
 k_vect=1/np.sqrt(3)*np.array((1,1,1))
 K=k_vect*k_number
 ###laser frequency
-freq=c/wav
+freq=mc.c/wav
 ##delta i.e. detuning
 ####excited state lifetime for p1/2 state
 tau=8.1e-9 ####I need an actual referenece for this
 ####gamma
 gamma=1/tau
 ###saturation intensity
-Isat=np.pi*h*c/(3*wav**2*tau)
+Isat=np.pi*mc.h*mc.c/(3*wav**2*tau)
 ####laser intensity
-I=.5*Isat
+###optimal is 2Isat
+I=2*Isat
 # I=0
-delta=-0.5*gamma
+delta=-.5*gamma
+###optimal is -0.5gamma
 
 ###saturation parameter
 s0=I/Isat
@@ -123,58 +82,12 @@ start_area=100e-6
 if using collisions method of damping
 """
 ####mass of cold gas for ccd reproduction images
-mg=mb/100
+mg=mc.mb/100
 T=2e-3
 ###mean and std of boltzmann distribution for virtual gas
-mu=np.sqrt(8*k*T/(np.pi*mg))
-sigma=np.sqrt(k*T/(2*mg))
+mu=np.sqrt(8*mc.k*T/(np.pi*mg))
+sigma=np.sqrt(mc.k*T/(2*mg))
 
-
-"""
-integration and
-parameter sweeping
-"""
-######integration step
-t_int=5e-9
-###########################if not loading from a file
-####total time
-Tfinal=.01
-####timestep at which to record data (cant be lower than t_int and should be a multiple of it)
-t_step=10e-9
-####time variable to start at (so you don't record the whole cooling part if you don;t want to)
-t_start=0.005
-#####times at which to record data
-t2=np.arange(t_start, Tfinal, 2*t_step)
-
-
-
-##############################if loading from a file
-####if preloading from a file
-#### total time you want to simulate
-tsweep=.005
-
-# in_path = '28 ions periodic.npy'
-# data_load=np.load(in_path,allow_pickle=True)
-# eq=data_load[1][:,-1]
-# tSTART=data_load[0][-1]
-# the start time is the last time interval of the prvious simulation
-#free up some RAM if you had input a large file
-# del data_load
-
-# TFIN=tsweep+tSTART
-####times to record
-# t3=np.arange(tSTART,tSTART+ tsweep, 20e-9)
-# fstart=.055e6
-# fsweep=.5e6
-# F=(t3-tSTART)*fsweep/tsweep+fstart
-######DC params
-Vend=20
-az=-16*e*Vend/((mb*np.sqrt(r0**2+2*z0**2))*omega**2)
-ax=-az/2-.1*az
-ay=-az/2+.1*az
-azz=np.abs(az)
-
-aDC=np.array([ax,ay,az])
 
 
 #####initial conditions
@@ -193,7 +106,7 @@ def stray_field(N,t):
       # freq=slope*(t-tSTART)+start
       F=np.zeros(3*N)
       E=10
-      F-= e*E*np.cos(freq*t)
+      F-= mc.e*E*np.cos(freq*t)
       return  F
 
 @njit
@@ -204,7 +117,7 @@ def FHYP_pseudo(X,N):
       x=Y[:,0]
       y=Y[:,1]
       z=Y[:,2]
-      coeff=e**2*V**2/(mb*omega**2*(r0**2+2*z0**2)**2)
+      coeff=mc.e**2*V**2/(mc.mb*omega**2*(r0**2+2*z0**2)**2)
       R=np.sqrt(x**2+y**2)      #######convert to polar coordinates
 
       phi=np.arctan2(y,x)
@@ -225,7 +138,7 @@ def FHYP_vect(X,N,t):
       computed and reassigned to the ions
       X is array of 3N positions in flat array, N is number of ions, t is time
       """
-      coeff=2*e*V/(r0**2+2*z0**2)*np.cos(omega*t) #calculate the coefficient for the force for a hyperbolic ion trap
+      coeff=2*mc.e*V/(r0**2+2*z0**2)*np.cos(omega*t) #calculate the coefficient for the force for a hyperbolic ion trap
       
       Y=X.reshape((N,3))      #reshaoe the coordinate array to xyz coords of each ion
 
@@ -258,15 +171,15 @@ somehow setting values too high can cause simulation not to work
       ###initialiize output array
       F=np.zeros((N,3))
       ####choose amount to increase/decrease forces by
-      wx=0e6*2*np.pi
-      wy=.2e6*2*np.pi
-      wz=2e6*np.pi
+      wx=-.06e6*2*np.pi
+      wy=.06e6*2*np.pi
+      wz=.6e6*np.pi
       #set order of forces
       trap=np.array([wx,wy,wz])
       #set sign of forces
       order=np.array([1,1,1])
       #calculate force
-      F-=mb*trap**2*order*A
+      F-=mc.mb*trap**2*order*A
       #return flattened array
       return F.ravel()
       
@@ -287,39 +200,12 @@ def F_DC_fake(X,N,t):
       #set sign of forces
       order=np.array([1,1,1])
       #calculate force
-      F-=mb*trap**2*order*A
+      F-=mc.mb*trap**2*order*A
       #return flattened array
       return F.ravel()
 
 
 
-
-@njit
-def FDC2(X,N):
-      '''
-      
-
-      Parameters
-      ----------
-      X : TYPE
-            DESCRIPTION.
-      N : TYPE
-            DESCRIPTION.
-
-      Returns
-      -------
-      TYPE
-            DESCRIPTION.
-
-      '''
-      
-
-      E=X.reshape((N,3))
-      F=np.zeros((N,3))
-      F+=aDC*E*omega**2*mb
-      
-      # F=W
-      return F.ravel()
 
 
       
@@ -346,7 +232,8 @@ def laser_vect(V,N):
       # S=np.zeros((N,1))
             #####################leave out F0 for now
 
-      F0=hbar*K*gamma/2*S/(1+S)
+      F0=mc.hbar*K*gamma/2*S/(1+S)
+      # F0=0
       F+=F0
       #################################
       #calculate recoil
@@ -357,7 +244,7 @@ def laser_vect(V,N):
       F=F.ravel()
       ###damping coefficient
       # F.ravel()
-      Beta=-hbar*4*s0*delta/gamma/(1+s0+(2*delta/gamma)**2)**2*np.kron(vel.dot(K),K)
+      Beta=-mc.hbar*4*s0*delta/gamma/(1+s0+(2*delta/gamma)**2)**2*np.kron(vel.dot(K),K)
       # Beta=5e-21
       # Beta=-5e-22
       # Beta=0
@@ -405,7 +292,6 @@ def laser_sweep(V,N,t):
       return F
 '''
       
-# evens = [ i for i in range(10) if i%2 == 0]
 @njit
 def laser_eq(V,N,t):
          # initialize output array
@@ -413,9 +299,9 @@ def laser_eq(V,N,t):
       
 
       F=np.zeros((3*N))
-      bigT=.005
+      bigT=.004
       
-      Beta=10e-20*(1-t/bigT)**2
+      Beta=3.34e-20*(1-t/bigT)**2
       #max is around 5e-21
       if t<=bigT:
             F-=Beta*V
@@ -454,27 +340,28 @@ def Coulomb_jit(X,N):
                       if i==j:
                             continue                 
                       else: 
-                            F[i]+=e**2/(4*np.pi*epsilon_0)*(x[i]-x[j])/np.linalg.norm(x[i]-x[j])**3
+                            F[i]+=mc.e**2/(4*np.pi*mc.epsilon_0)*(x[i]-x[j])/np.linalg.norm(x[i]-x[j])**3
     return F.ravel()
 @njit
 def mag_field(V,N):
       # B=np.array([0,0,1])
       vel=V.reshape((N,3))
       F=np.zeros((N,3))
-      F-=e*(np.cross(vel,B))
+      F-=mc.e*(np.cross(vel,B))
       return F.ravel()
 """
 random speed generator based on light gas particle at desired temperature with mean and std 
 given by the maxwell boltzman distribution
 """
-
+@njit
 def rand_v(mu,sigma):
-    return np.random.normal(mu,sigma,1)[0]
+    return np.random.normal(mu,sigma)
 #####funcgtion from the internet to generate random unit vectors
     
 """
 to generate random unit vectors for collision simulations
 """
+@njit
 def random_three_vector():
     """
     Generates a random 3D unit vector (direction) with a uniform spherical distribution
@@ -491,7 +378,7 @@ def random_three_vector():
     vect[1] = np.sin( theta) * np.sin( phi )
     vect[2] = np.cos( theta )
     return vect
-
+@njit
 def rand_n():
     return random_three_vector()
 
@@ -500,19 +387,34 @@ function to calculate new ion velocity after collision with virtual light,
 cold gas particle, based on classical collision
 """
 #####v_old must be a numpy vector 3x1. returns a 3x1 numpy array
+@njit
 def collision(v_old):
     vg=rand_v(mu,sigma)
     n0=random_three_vector() ####random velocity unit vector assigned to ion
     n1=random_three_vector() ####random velocity of gas particle
-    return mg/(mb+mg)*np.abs(np.linalg.norm(v_old)-vg)*n0+(mb*v_old+mg*vg*n1)/(mb+mg)
-###takes array of velocities for N ions and updates (Nx3)
-    
+    return mg/(mc.mb+mg)*np.abs(np.linalg.norm(v_old)-vg)*n0+(mc.mb*v_old+mg*vg*n1)/(mc.mb+mg)
+###takes ravelled array of velocities for N ions and updates 
+@njit
 def collisions(V):
-    for i in range(0,len(V)):
-        V[i]=collision(V[i])
-    return V
+    X=np.zeros(len(V))
+    N=int(len(V)/3)
+    for i in range(0,N):
+        Y=V[3*i:3*i+3]
+        X[3*i:3*i+3]=collision(Y)
+    return X
+@njit
+def collisions2(V,t):
+    X=np.zeros(len(V))
+    N=int(len(V)/3)
+    if t/(10e-9)-int(t/(10e-9))*10e-9<5e-9:
+          for i in range(0,N):
+              Y=V[3*i:3*i+3]
+              X[3*i:3*i+3]=collision(Y)
+          return X
+    else: return V
 
 
+# def excite_motion(vel)
 #####funcgtion from the internet to generate random unit vectors
     
 """
@@ -527,8 +429,8 @@ def rand_pos(grid_size):
 
 
 def initialize_ions(N,start_area,T):
-      mu_barium=np.sqrt(8*k*T/(np.pi*mb))
-      sigma_barium=np.sqrt(k*T/(2*mb))
+      mu_barium=np.sqrt(8*mc.k*T/(np.pi*mc.mb))
+      sigma_barium=np.sqrt(mc.k*T/(2*mc.mb))
       IC=np.zeros(6*N) #initialize output array
       
       for i in range(1,N+1): #loop through ions
@@ -539,8 +441,8 @@ def initialize_ions(N,start_area,T):
               
       return IC
 def initialize_ions_noz(N,start_area,T):
-      mu_barium=np.sqrt(8*k*T/(np.pi*mb))
-      sigma_barium=np.sqrt(k*T/(2*mb))
+      mu_barium=np.sqrt(8*mc.k*T/(np.pi*mc.mb))
+      sigma_barium=np.sqrt(mc.k*T/(2*mc.mb))
       IC=np.zeros(6*N) #initialize output array
       
       for i in range(1,N+1): #loop through ions
@@ -562,7 +464,7 @@ solving the system of ODE's with ode solvers'
 #initialize ion trajectories with random displacement and velocity
 
 
-
+""" commented out but keeping, in case we want to use ODEint again
 @njit
 def Newton(X,t,N):
       '''
@@ -584,23 +486,9 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
                   #update v_dot (this is F=ma)
       dt[0:3*N] = vel #update x_dot=v
       return dt 
+"""
 
-@njit
-def Newton2(t,X,N):
-      '''
-same as Newton 1 but for use with Scipy.integrate.solve_ivp.
- The only difference is switching t,y.
-      
-      '''
-      
-      dt=np.zeros(6*N)#initialize output array
-      
-      pos = X[0:3*N]#positions
-      vel = X[3*N:6*N]#velocities
-      dt[3*N:6*N]=Coulomb_vect(pos,N)/mb + laser_vect(vel,N)/mb + FHYP_vect(pos,N,t)/mb + F_DC(pos,N)/mb
-                  #update v_dot (this is F=ma)
-      dt[0:3*N] = vel #update x_dot=v
-      return dt 
+
 
 @njit
 def Newton3(t,X,N):
@@ -614,14 +502,14 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
       
       
       '''
-      
+      mb=mc.mb
       dt=np.zeros(6*N)#initialize output array
       
       pos = X[0:3*N]#positions
       vel = X[3*N:6*N]#velocities
-      dt[3*N:6*N]=Coulomb_vect(pos,N)/mb + laser_vect(vel,N)/mb + FHYP_vect(pos,N,t)/mb + F_DC(pos,N)/mb
+      dt[3*N:6*N]=Coulomb_vect(pos,N)/mb  +F_DC(pos,N)/mb+FHYP_pseudo(pos,N)/mb + laser_vect(vel,N)/mb 
                   #update v_dot (this is F=ma)
-      dt[0:3*N] = vel #update x_dot=v
+      dt[0:3*N] = vel#collisions(vel) #vel #update x_dot=v
       return dt
 
 
@@ -637,7 +525,7 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
       
       
       '''
-      
+      mb=mc.mb
       dt=np.zeros(6*N)#initialize output array
       
       pos = X[0:3*N]#positions
@@ -648,15 +536,63 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
       # print("hi")
       return dt
 
+"""
+use this to simulate trajectories when there is no micromotion. Its much faster and better for reproducing CCD images
+"""
+###please make T a multiple of tstep
+@njit
+def leap_frog(N,T,tstep,IC):
+      
+      #####determine number of iterations
+      mb=mc.mb
+      iterations=int(T/tstep)
+      time_elapsed=np.zeros(iterations)
+      # ####initialize trajectories
+      trajectories=np.zeros((6*N,iterations),dtype=np.float64)
+      trajectories[:,0]=IC
+      pos=np.zeros(3*N)
+      vel=np.zeros(3*N)
+      # trajectories[:,0]=np.array(IC,dtype=np.float64)
+      ##initialize  acceleration variable . keep track of old/new
+      acc=np.zeros((3*N,2))
+      t=0
+      pos=trajectories[0:3*N,0].copy()
+      vel=trajectories[3*N:6*N,0]
+      acc[:,1]=Coulomb_vect(pos,N)/mb  +F_DC(pos,N)/mb+FHYP_pseudo(pos,N)/mb
+      it=1
+      t=tstep
+      
+      
+      while it<iterations:
+            ######get current position,velocity of all ions
+            acc[:,0]=acc[:,1].copy()
+            pos=trajectories[0:3*N,it-1].copy()
+            vel=trajectories[3*N:6*N,it-1].copy()
+            ######update positions based on x=vit+1/2at^2
+            trajectories[0:3*N,it]=pos+vel*tstep+.5*tstep**2*acc[:,0].copy()
+            ########record old acceleration, calculate new one
+          
+            ######sum up forces
+            #with micromotion
+            # acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_vect(pos,N,t) )
+            #without micromotion
+            acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N) )
 
+            #####compute velocities
+            trajectories[3*N:6*N,it]=vel+.5*tstep*(acc[:,0].copy()+acc[:,1].copy())
+            trajectories[3*N:6*N,it]=collisions(trajectories[3*N:6*N,it].copy())
+            '''old algo for reference
+            # pos_track[it]=pos_track[it-1]+vel_track[it-1]*delta+.5*delta**2*acc_track[it-1]
+            # acc_track[it]=sum_force_all(pos_track[it])/mb
+            # vel_track[it]=vel_track[it-1]+.5*(acc_track[it]+acc_track[it-1])*delta
+            # vel_track[it]=collisions(vel_track[it])
+            '''
+            time_elapsed[it]=t
+            it+=1
+            t+=tstep
+      return time_elapsed,trajectories
 
-wx=0e6*2*np.pi
-wy=.2e6*2*np.pi
-wz=2e6*np.pi
-      #set order of forces
-trap=np.array([wx,wy,wz])
-      #set sign of forces
-order=np.array([1,1,1])
+""" Probably phaisng this out
 @njit
 def Newton4(t,X,N):
       '''
@@ -727,69 +663,11 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
                   #update v_dot (this is F=ma)
       dt[0:3*N] = vel.ravel() #update x_dot=v
       return dt
-      
-
-# A=np.zeros(2)
-
-# xcord=np.zeros(((3*N),)
-# def leap_a(X,V,N,t):
-      
-      
-#       a=1/mb*(Coulomb_jit(X,N)+laser_vect(V,N)+FHYP_vect(pos,N,T)+F_DC(pos,N))
-#       return a
-# def leap_v(V,A,t):      
-#       V=V+A*
-# def leap_x(X,A):
-#       x=0
-# N=6
-# IC=initialize_ions(N,start_area,Tb)
-
-# Q = odeint(Newton, IC, t2, args=(N,))
-# Q=RK45(Newton,0,IC,.005)
-# newfun=lambda t,y: return Newton(y,t,N)
-# start=time.time()
-# print("start")
-# 
-# P = INT.solve_ivp(lambda t, y: Newton4(t,y,N), [0,Tfinal],y0=IC, t_eval=t2,method='RK45',max_step=t_int)
-
-# foo2=lambda t, y: Newton3(t,y,N)
-
-# P=INT.solve_ivp(lambda t, y: Newton2(t,y,N), [tSTART,TFIN],y0=np.array(eq), t_eval=t3,method='RK45',max_step=t_int)
-# t=10e-9
-# T=0
-# while T<.0005:
-      ####save data
-# np.save(path,Q)
-###find final positions
-# xcord=np.zeros(N)
-# ycord=np.zeros(N)
-# zcord=np.zeros(N)
-
-# ####if using odeint
-# # for i in range(0,N):
-# #       xcord[i]=Q[-1,3*i]
-# #       ycord[i]=Q[-1,3*i+1]
-# #       zcord[i]=Q[-1,3*i+2]
-# # ax = plt.axes(projection='3d')
-# # ax.set_zlabel(r'Z', fontsize=30)
-# # ax.scatter3D(xcord, ycord, zcord)
-
-# print(time.time()-start)
-# # #####if using solve_ivp
-# for i in range(0,N):
-#       xcord[i]=P.y[3*i,-1]
-#       ycord[i]=P.y[3*i+1,-1]
-#       zcord[i]=P.y[3*i+2,-1]
-# ax = plt.axes(projection='3d')
-# ax.set_zlabel(r'Z', fontsize=20)
-# ax.set_xlim3d(-30e-6, 30e-6)
-# ax.set_ylim3d(-30e-6,30e-6)
-# ax.set_zlim3d(-30e-6,30e-6)
-# ax.scatter3D(xcord, ycord, zcord)
-# np.save(path,(P.t,P.y))
+"""    
 
 
-
+# example code for running simulation
+# P = INT.solve_ivp(lambda t, y: Newton3(t,y,N), [0,Tfinal],y0=IC, t_eval=t2,method='RK45',max_step=t_int)
 
 
 
