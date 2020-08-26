@@ -7,6 +7,7 @@ Created on Fri May  1 10:29:28 2020
 import numpy as np
 import MDfunc as md
 from MDfunc import Newton3,Newton5,leap_frog
+from MDfunc import omega as omg
 import mdconst as mc
 import matplotlib.pyplot as plt
 from numba import njit, prange
@@ -16,25 +17,29 @@ import tkinter
 import time
 
 ###load file. If True you will get prompted to open one. if False, it will use random initial conditions
-load_file=False
+load_file=True
 #######set file name for saving after
 path='change_name.npy'
 ##number of ions
-N=15
+N=6
 '''
 Integration Parameters
 '''
 ######integration step
-t_int=5e-9
+omega1=omg
+# t_int=5e-9
+#####set integration time to 1/20 of period
+t_int=1/(omg/2/np.pi)/20
 ###########################if not loading from a file
 ####total time
 Tfinal=.005
 ####timestep at which to record data (cant be lower than t_int and should be a multiple of it)
-t_step=10e-9
+t_step=2*t_int
 ####time variable to start at (so you don't record the whole cooling part if you don;t want to)
-t_start=.0
-#####times at which to record data
+t_start=0
+#####times at which to integrate
 trange=[0,Tfinal]
+# Times to record data
 
 t2=np.arange(t_start, Tfinal, t_int)
 
@@ -77,7 +82,7 @@ if load_file==True:
       #new integration range beginning from previous start time
       trange=[tSTART,tSTART+Tfinal]
       ####new time to record data
-      t2=np.arange(tSTART, Tfinal+tSTART, t_int)
+      t2=np.arange(tSTART, Tfinal+tSTART, t_int*2)
       #free up some RAM if you had input a large file
       del data_load
 
@@ -87,15 +92,30 @@ if load_file==True:
 ######time your simulation
 start=time.time()
 print("simulation has started")
+xcord=np.zeros(N,dtype=np.float64)
+ycord=np.zeros(N,dtype=np.float64)
+zcord=np.zeros(N,dtype=np.float64)
 
 # ######if using RK45 or other integrator
-# Q = INT.solve_ivp(lambda t, y: Newton5(t,y,N), trange, y0=IC, t_eval=t2, method='RK23',max_step=t_int)
-# P[0]=Q.t
-# P[1]=Q.y
+# Q = INT.solve_ivp(lambda t, y: Newton3(t,y,N), trange, y0=IC, t_eval=t2, method='RK45',max_step=t_int)
+# # P=np.zeros((3))
+# A=np.array([Q.t,Q.y],dtype=object)
+# np.save(path,A)
+
+# for i in range(0,N):
+#       xcord[i]=Q.y[3*i,-1]
+#       ycord[i]=Q.y[3*i+1,-1]
+#       zcord[i]=Q.y[3*i+2,-1]
 #####if using leapfrog algorithm
-P=leap_frog(N,5e-3,5e-9,np.array(IC))
-# P.t=P[0]
-# P.y=P[1]
+P=leap_frog(N,Tfinal,t_int,np.array(IC))
+np.save(path,(P[0],P[1]))
+###find final coordinates and plot to check if there is a crystal (with solve_ivp)
+
+for i in range(0,N):
+      xcord[i]=P[1][3*i,-1]
+      ycord[i]=P[1][3*i+1,-1]
+      zcord[i]=P[1][3*i+2,-1]
+
 
 
 #####how much time it took
@@ -103,19 +123,14 @@ print("simulation has finished and took",time.time()-start,"s")
 
 
 ####find final coordinates and plot to check if there is a crystal (with solve_ivp)
-xcord=np.zeros(N)
-ycord=np.zeros(N)
-zcord=np.zeros(N)
-for i in range(0,N):
-      xcord[i]=P[1][3*i,-1]
-      ycord[i]=P[1][3*i+1,-1]
-      zcord[i]=P[1][3*i+2,-1]
+
+
 ax = plt.axes(projection='3d')
 ax.set_zlabel(r'Z', fontsize=20)
 ax.set_xlim3d(-30e-6, 30e-6)
 ax.set_ylim3d(-30e-6,30e-6)
 ax.set_zlim3d(-30e-6,30e-6)
 ax.scatter3D(xcord, ycord, zcord)
-np.save(path,(P[0],P[1]))
+
 
 

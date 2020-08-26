@@ -22,7 +22,13 @@ wav=493e-9
 #laser wave number
 k_number=2*np.pi/wav
 ###wave vector
-k_vect=1/np.sqrt(3)*np.array((1,1,1))
+# k_vect=1/np.sqrt(3)*np.array((1,1,1))
+###note to self 2:3:1, 1:1:1 work, 1:1:0.3
+######################set the direction of laser cooling
+dx=.1
+dy=.1
+dz=.04
+k_vect=1/np.sqrt(dx**2+dy**2+dz**2)*(np.array((dx,dy,dz)))
 K=k_vect*k_number
 ###laser frequency
 freq=mc.c/wav
@@ -35,9 +41,11 @@ gamma=1/tau
 Isat=np.pi*mc.h*mc.c/(3*wav**2*tau)
 ####laser intensity
 ###optimal is 2Isat
+I=3*Isat
 I=2*Isat
 # I=0
 delta=-.5*gamma
+delta=-0.5*gamma
 ###optimal is -0.5gamma
 
 ###saturation parameter
@@ -58,9 +66,10 @@ Trap parameters
 #####hyperbolic trap parameters
 r0=.002
 z0=.0005
-V=2000
+V=800
 ####rf drive frequency
-omega=10e6*2*np.pi 
+# omega=10e6*2*np.pi 
+omega=12.46e6*2*np.pi
 
 """
 Magnetic field
@@ -171,13 +180,13 @@ somehow setting values too high can cause simulation not to work
       ###initialiize output array
       F=np.zeros((N,3))
       ####choose amount to increase/decrease forces by
-      wx=-.06e6*2*np.pi
-      wy=.06e6*2*np.pi
-      wz=.6e6*np.pi
+      wx=-.14e6*2*np.pi
+      wy=.14e6*2*np.pi
+      wz=.8e6*np.pi
       #set order of forces
       trap=np.array([wx,wy,wz])
       #set sign of forces
-      order=np.array([1,1,1])
+      order=np.array([1,-1,1])
       #calculate force
       F-=mc.mb*trap**2*order*A
       #return flattened array
@@ -232,7 +241,7 @@ def laser_vect(V,N):
       # S=np.zeros((N,1))
             #####################leave out F0 for now
 
-      F0=mc.hbar*K*gamma/2*S/(1+S)
+      F0=mc.hbar*K*gamma*S/2/(1+S)
       # F0=0
       F+=F0
       #################################
@@ -245,7 +254,7 @@ def laser_vect(V,N):
       ###damping coefficient
       # F.ravel()
       Beta=-mc.hbar*4*s0*delta/gamma/(1+s0+(2*delta/gamma)**2)**2*np.kron(vel.dot(K),K)
-      # Beta=5e-21
+      # Beta=8e-21
       # Beta=-5e-22
       # Beta=0
       # F-=Beta*np.kron(vel.dot(k_vect),k_vect)
@@ -507,9 +516,10 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
       
       pos = X[0:3*N]#positions
       vel = X[3*N:6*N]#velocities
-      dt[3*N:6*N]=Coulomb_vect(pos,N)/mb  +F_DC(pos,N)/mb+FHYP_pseudo(pos,N)/mb + laser_vect(vel,N)/mb 
+      dt[3*N:6*N]=Coulomb_vect(pos,N)/mb  +F_DC(pos,N)/mb+FHYP_vect(pos,N,t)/mb + laser_vect(vel,N)/mb 
                   #update v_dot (this is F=ma)
-      dt[0:3*N] = vel#collisions(vel) #vel #update x_dot=v
+                  #######AK you changed this make sure to check it
+      dt[0:3*N] = collisions(vel) #vel #update x_dot=v
       return dt
 
 
@@ -574,9 +584,9 @@ def leap_frog(N,T,tstep,IC):
           
             ######sum up forces
             #with micromotion
-            # acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_vect(pos,N,t) )
+            acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N))# +laser_vect(vel,N))
             #without micromotion
-            acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N) )
+            # acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N) )
 
             #####compute velocities
             trajectories[3*N:6*N,it]=vel+.5*tstep*(acc[:,0].copy()+acc[:,1].copy())
