@@ -13,9 +13,9 @@ from scipy.constants import k as K
 from scipy.constants import epsilon_0 as EPSILON_0
 from numpy import pi as PI
 
-from scipy.constants import c
+from scipy.constants import c as C
 from scipy.constants import hbar
-from scipy.constants import h
+from scipy.constants import h as H
 from scipy.constants import physical_constants
 
 M=physical_constants['atomic mass constant'][0]

@@ -12,12 +12,12 @@ m = 138*M
 kappa = Q**2 / (4 * PI * EPSILON_0)
 
 # initial
-start_area = 20e-6
+start_area = 200e-6
 T = 150
 
 # simulation
-twindow = 5e-3
-tstep = 5e-9
+twindow = 5e-4
+tstep = 4e-10
 
 # grid properties
 gmax = .005 # max and min grid point position
@@ -32,3 +32,10 @@ m_g=m/100
 T_g=2e-3
 mu_g=np.sqrt(8* K *T_g/(PI*m_g)) # mean
 sigma_g=np.sqrt(K*T_g/(2*m_g)) # std
+
+f = 20*(10**6)
+omega = np.pi*2*f
+period = 1 / f
+
+field_config = {'half_grid_points': 200, 
+                'half_grid_length': 0.005}
