@@ -10,17 +10,6 @@ from numba import njit, prange
 from userconfig import *
 import laser
 
-# laser cooling
-###laser wavelength
-wav=493e-9
-#laser wave number
-k_number=2*np.pi/wav
-
-dx=.1
-dy=.1
-dz=.04
-k_vect=1/np.sqrt(dx**2+dy**2+dz**2)*(np.array((dx,dy,dz)))
-
 @njit
 def random_three_vector():
     """
@@ -98,17 +87,6 @@ def coulomb_vect(X, N):
         #return flattened array
     return F.ravel()
 
-@njit
-def laser_eq(V,N,t):
-    # initialize output array
-    F=np.zeros((3*N))
-
-    Beta=3.34e-20*(1-t/twindow)**2
-    #max is around 5e-21
-    if t<=twindow:
-        F-=Beta*V
-    return F
-
 #####v_old must be a numpy vector 3x1. returns a 3x1 numpy array
 @njit
 def collision(v_old):
@@ -126,6 +104,51 @@ def collisions(V):
         Y=V[3*i:3*i+3]
         X[3*i:3*i+3]=collision(Y)
     return X
+
+'''
+@njit
+def field_vect(X, N, field):
+    """
+    Field vect interpolation version.
+    Assign forces for individual ions on the force field with trilinear interpolation
+    Reference: https://en.wikipedia.org/wiki/Trilinear_interpolation
+    """
+    # Reshape the positions
+    indv_pos = X.reshape((N,3))
+    
+    unit = grid / size
+    c = int(size/2)
+    
+    # Initialiize output array
+    F = np.zeros((N, 3))
+    
+    for i in range(0,N):
+        x = indv_pos[i,0] / unit + c
+        y = indv_pos[i,1] / unit + c
+        z = indv_pos[i,2] / unit + c
+        x0 = int(x)
+        y0 = int(y)
+        z0 = int(z)
+        x1 = x0 + 1
+        y1 = y0 + 1
+        z1 = z0 + 1
+        xd = x - x0
+        yd = y - y0
+        zd = z - z0
+        for j in range(0,3):
+            c00 = field[j][x0,y0,z0] * (1 - xd) + field[j][x1,y0,z0] * xd
+            c01 = field[j][x0,y0,z1] * (1 - xd) + field[j][x1,y0,z1] * xd
+            c10 = field[j][x0,y1,z0] * (1 - xd) + field[j][x1,y1,z0] * xd
+            c11 = field[j][x0,y1,z1] * (1 - xd) + field[j][x1,y1,z1] * xd
+
+            c0 = c00 * (1 - yd) + c10 * yd
+            c1 = c01 * (1 - yd) + c11 * yd
+
+            F[i,j] = c0 * (1 - zd) + c1 * zd
+    
+    #Return flattened array
+    return F.ravel()
+'''
 
 @njit
 def field_vect(X, N, params):
@@ -152,9 +175,12 @@ def field_vect(X, N, params):
     #Return flattened array
     return F.flatten()
 
-#@njit
-def leap_frog(N, init_cdn, DCparams, RFparams, signal):
-
+@njit
+def leap_frog(N, init_cdn, DCparams, RFparams, fm):
+    '''
+    Leap frog version.
+    Param fm is used for modulations (used in DC slow modulation and LIR)
+    '''
     # Initialize the time vector
     iterations = int(twindow / tstep)
     time = np.zeros(iterations)
@@ -173,8 +199,9 @@ def leap_frog(N, init_cdn, DCparams, RFparams, signal):
     # Assign initial values
     pos = trajectories[0 : 3 * N, 0].copy()
     vel = trajectories[3 * N : 6 * N, 0]
-    acc[:, 1] = 1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + +FHYP_pseudo(pos,N))
-
+    # Same as dt in the Newton 3 function
+    acc[:, 1] = 1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + FHYP_pseudo(pos,N) + field_vect(pos, N, DCparams)*1*np.sin(2*np.pi*fm*t))
+    
     # Iterate
     while it < iterations:
         
@@ -187,7 +214,8 @@ def leap_frog(N, init_cdn, DCparams, RFparams, signal):
         trajectories[0 : 3 * N, it] = pos + vel * tstep + .5 * (tstep**2) * acc[:,0].copy()
 
         # Sum up forces without micromotion
-        acc[:,1] = 1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + +FHYP_pseudo(pos,N))# + laser_vect(vel,N))
+        # Same as dt in the Newton 3 function
+        acc[:,1] = 1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + FHYP_pseudo(pos,N) + field_vect(pos, N, DCparams)*1*np.sin(2*np.pi*fm*t))# + laser_vect(vel,N))
 
         # Compute velocities
         trajectories[3 * N : 6 * N, it] = vel + .5 * tstep * (acc[:,0].copy() + acc[:,1].copy())
@@ -220,47 +248,44 @@ def FHYP_pseudo(X,N):
       return F.transpose(1,0).ravel()
 
 @njit
-def Newton3(t,X,N, DCparams, RFparams):
+def Newton3(t,X,N, DCparams, RFparams,fm):
     '''
-    A few notes about this function
-    laser cooling and trap functions are 
-    external since they are simpler and faster. 
-
-
-    The output is all of the derivatives wrt time, for easy input into a diff eq solver like odeint   
-
-
+    Diff equation solver version.
+    Param fm is used for modulations (used in DC slow modulation and LIR)
+    For micromotions, this function should be used.
     '''
     dt=np.zeros(6*N)#initialize output array
-
     pos = X[0:3*N]#positions
     vel = X[3*N:6*N]#velocities
-    #dt[3*N:6*N]=1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + field_vect(pos, N, RFparams * np.cos(omega*t)) + laser.laser_vect(vel,N) + laser2.laser_vect2(vel,N))
+
+    # Add what you want, basically, switch between RF field_vect and pseudo
+    #dt[3*N:6*N]=1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + field_vect(pos, N, RFparams * np.cos(omega*t)) + laser.laser_vect(vel,N))
     dt[3*N:6*N]=1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + FHYP_pseudo(pos,N) + laser.laser_vect(vel,N))
-                #update v_dot (this is F=ma)
-                #######AK you changed this make sure to check it
-    dt[0:3*N] = collisions(vel) #vel #update x_dot=v
-    #for i in range(0,N):
-    #    delta_avg = np.sqrt(laser.vr**2*laser.R*tstep)
-    #    delta_spontaneous = delta_avg*laser.random_three_vector()
-    #    delta_kick = k_vect * delta_avg
-    #    delta = delta_kick+delta_spontaneous
-    #    dt[i*3] += delta[0]
-    #    dt[i*3+1] += delta[1]
-    #    dt[i*3+2] += delta[2]
+    #dt[3*N:6*N]=1 / m * (coulomb_vect(pos,N) + field_vect(pos, N, DCparams) + FHYP_pseudo(pos,N) + field_vect(pos, N, DCparams)*1*np.sin(2*np.pi*fm*t))
+    
+    #update v_dot (this is F=ma)
+    #######AK you changed this make sure to check it
+    dt[0:3*N] = collisions(vel) # if you want virtual gas
+    dt[0:3*N] = vel #vel #update x_dot=v
+    
+    # The following is for vr kicks, to do so, the time step should be the scattering "period"
+    # Refer to Foot's chapter about Doppler limits
+    for i in range(0,N):
+        delta_avg = np.sqrt(laser.vr**2*laser.R*tstep)
+        delta_spontaneous = delta_avg*laser.random_three_vector()
+        #delta_kick = k_vect * delta_avg
+        #delta = delta_kick+delta_spontaneous
+        delta = delta_spontaneous
+        dt[i*3] += delta[0]
+        dt[i*3+1] += delta[1]
+        dt[i*3+2] += delta[2]
+    
     return dt
 
 #@njit
 def Newton4(t,X,N, DCparams, RFparams):
     '''
-    A few notes about this function
-    laser cooling and trap functions are 
-    external since they are simpler and faster. 
-
-
-    The output is all of the derivatives wrt time, for easy input into a diff eq solver like odeint   
-
-
+    Another version of realizing Doppler limit. Use exponential decays.
     '''
     dt=np.zeros(7*N)#initialize output array
 
@@ -286,12 +311,4 @@ def Newton4(t,X,N, DCparams, RFparams):
             if(prob >= np.random.rand()):
                 excite[i] = np.random.exponential(laser.tau)
                 vel[i*3:(i+1)*3] += np.linalg.norm(laser.k_vect)*laser.vr
-    #for i in range(0,N):
-    #    delta_avg = np.sqrt(laser.vr**2*laser.R*tstep)
-    #    delta_spontaneous = delta_avg*laser.random_three_vector()
-    #    delta_kick = k_vect * delta_avg
-    #    delta = delta_kick+delta_spontaneous
-    #    dt[i*3] += delta[0]
-    #    dt[i*3+1] += delta[1]
-    #    dt[i*3+2] += delta[2]
     return dt

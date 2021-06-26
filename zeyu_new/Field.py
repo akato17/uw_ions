@@ -3,6 +3,7 @@ import fieldfunc as ff
 import userconfig as uc
 import gc
 
+#Class version of Field initialization and import
 class Field:
     
     def __init__(self, mode = 'create', VRF = np.array([0,0,0,0,0,0,0,0,1000,1000]), VDC = np.array([10,0,0,0,10,0,0,0,0,0]), paramsRF_file = 'paramsRF.npy', paramsDC_file = 'paramsDC.npy'):

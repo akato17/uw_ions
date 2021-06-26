@@ -16,8 +16,10 @@ start_area = 200e-6
 T = 150
 
 # simulation
-twindow = 5e-4
-tstep = 4e-10
+#twindow = 5e-5
+twindow = 5e-2
+tstep = 3.24e-08
+#tstep = 4e-9
 
 # grid properties
 gmax = .005 # max and min grid point position
@@ -33,7 +35,8 @@ T_g=2e-3
 mu_g=np.sqrt(8* K *T_g/(PI*m_g)) # mean
 sigma_g=np.sqrt(K*T_g/(2*m_g)) # std
 
-f = 20*(10**6)
+#trap parameters
+f = 12.08*(10**6)
 omega = np.pi*2*f
 period = 1 / f
 
