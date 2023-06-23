@@ -17,7 +17,7 @@ import tkinter
 import time
 
 ###load file. If True you will get prompted to open one. if False, it will use random initial conditions
-load_file=True
+load_file=False
 #######set file name for saving after
 path='change_name.npy'
 ##number of ions
@@ -64,27 +64,27 @@ IC=md.initialize_ions(N,start_area,Tb)
 ####random initial conditions if you want to start with all ions at Z=0
 IC2=md.initialize_ions_noz(N,start_area,Tb)
 
-#########if you are laoding a file
-if load_file==True:
-      root=tkinter.Tk()
-      filename = askopenfilename()
-      root.destroy()
-      # in_path="28 ions periodic.npy"
-      data_load=np.load(filename,allow_pickle=True)
-      #extract number of ions
-      N=int(len(data_load[1])/6)
-      #find last position of all ions
-      eq=np.array(data_load[1][:,-1])
-      #set initial conditions to the last known position
-      IC=eq
-      ###set start time to be the last time of the previous simulation
-      tSTART=data_load[0][-1]
-      #new integration range beginning from previous start time
-      trange=[tSTART,tSTART+Tfinal]
-      ####new time to record data
-      t2=np.arange(tSTART, Tfinal+tSTART, t_int*2)
-      #free up some RAM if you had input a large file
-      del data_load
+#########if you are loading a file
+# if load_file==True:
+#       root=tkinter.Tk()
+#       filename = askopenfilename()
+#       root.destroy()
+#       # in_path="28 ions periodic.npy"
+#       data_load=np.load(filename,allow_pickle=True)
+#       #extract number of ions
+#       N=int(len(data_load[1])/6)
+#       #find last position of all ions
+#       eq=np.array(data_load[1][:,-1])
+#       #set initial conditions to the last known position
+#       IC=eq
+#       ###set start time to be the last time of the previous simulation
+#       tSTART=data_load[0][-1]
+#       #new integration range beginning from previous start time
+#       trange=[tSTART,tSTART+Tfinal]
+#       ####new time to record data
+#       t2=np.arange(tSTART, Tfinal+tSTART, t_int*2)
+#       #free up some RAM if you had input a large file
+#       del data_load
 
 
 
@@ -108,7 +108,8 @@ zcord=np.zeros(N,dtype=np.float64)
 #       zcord[i]=Q.y[3*i+2,-1]
 #####if using leapfrog algorithm
 P=leap_frog(N,Tfinal,t_int,np.array(IC))
-np.save(path,(P[0],P[1]))
+print(P)
+#np.save(path,P)
 ###find final coordinates and plot to check if there is a crystal (with solve_ivp)
 
 for i in range(0,N):
@@ -131,6 +132,4 @@ ax.set_xlim3d(-30e-6, 30e-6)
 ax.set_ylim3d(-30e-6,30e-6)
 ax.set_zlim3d(-30e-6,30e-6)
 ax.scatter3D(xcord, ycord, zcord)
-
-
-
+plt.show()

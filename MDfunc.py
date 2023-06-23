@@ -34,7 +34,7 @@ K=k_vect*k_number
 freq=mc.c/wav
 ##delta i.e. detuning
 ####excited state lifetime for p1/2 state
-tau=8.1e-9 ####I need an actual referenece for this
+tau=8.1e-9 ####I need an actual reference for this
 ####gamma
 gamma=1/tau
 ###saturation intensity
@@ -80,8 +80,8 @@ initial conditions parameters
 """
 ### initial conditions of barium ions, temperature, boltzman mean and std
 Tb=500
-# mu_barium=np.sqrt(8*k*Tb/(np.pi*mb))
-# sigma_barium=np.sqrt(k*Tb/(2*mb))
+mu_barium=np.sqrt(8*K*Tb/(np.pi*mc.mb))
+sigma_barium=np.sqrt(K*Tb/(2*mc.mb))
 ###temperature of virtual gas
 
 ###size of grid where initial positions may start
@@ -120,7 +120,7 @@ def stray_field(N,t):
 
 @njit
 def FHYP_pseudo(X,N):
-      Y=X.reshape((N,3))      #reshaoe the coordinate array to xyz coords of each ion
+      Y=X.reshape((N,3))      #reshape the coordinate array to xyz coords of each ion
       # F=np.zeros((N,3))
       ###seperate out the coordinates
       x=Y[:,0]
@@ -142,16 +142,16 @@ def FHYP_pseudo(X,N):
 @njit
 def FHYP_vect(X,N,t):
       """
-      this kinf of force is heavily dependent on the coordinate system. Therefore
-      we first convert to polars and seperate ions by coordinates. The forces are then 
+      this kind of force is heavily dependent on the coordinate system. Therefore
+      we first convert to polars and separate ions by coordinates. The forces are then 
       computed and reassigned to the ions
       X is array of 3N positions in flat array, N is number of ions, t is time
       """
       coeff=2*mc.e*V/(r0**2+2*z0**2)*np.cos(omega*t) #calculate the coefficient for the force for a hyperbolic ion trap
       
-      Y=X.reshape((N,3))      #reshaoe the coordinate array to xyz coords of each ion
+      Y=X.reshape((N,3))      #reshape the coordinate array to xyz coords of each ion
 
-      ###seperate out the coordinates
+      ###separate out the coordinates
       x=Y[:,0]
       y=Y[:,1]
       z=Y[:,2]
@@ -227,18 +227,18 @@ def laser_vect(V,N):
       #initialize output array
       F=np.zeros((N,3))
       vel=V.reshape((N,3))
-      # delta=L[1]
-      # s0=L[2]
-      # K=L[3]
-      # s0=.25
+      #delta=L[1]
+      #s0=L[2]
+      #K=L[3]
+      s0=.25
       
-      # F0=0
+      F0=0
       ###project velocity into laser direction
-      # speedk=-vel.dot(k_vect)
-      # delta=-200e6*2*np.pi+k_number*speedk*0
-      # delta=0
+      speedk=-vel.dot(k_vect)
+      delta=-200e6*2*np.pi+k_number*speedk*0
+      delta=0
       S=s0/(1+(2*delta/gamma)**2)
-      # S=np.zeros((N,1))
+      S=np.zeros((N,1))
             #####################leave out F0 for now
 
       F0=mc.hbar*K*gamma*S/2/(1+S)
@@ -246,19 +246,19 @@ def laser_vect(V,N):
       F+=F0
       #################################
       #calculate recoil
-      #F+=hbar*S/(1+S)*(.5*gamma*K)
+      F+=mc.hbar*S/(1+S)*(.5*gamma*K)
       
       #flatten array
-      # F+=np.kron(S,k_vect)
+      F+=np.kron(S,k_vect)
       F=F.ravel()
       ###damping coefficient
-      # F.ravel()
+      F.ravel()
       Beta=-mc.hbar*4*s0*delta/gamma/(1+s0+(2*delta/gamma)**2)**2*np.kron(vel.dot(K),K)
-      # Beta=8e-21
+      #Beta=8e-21
       # Beta=-5e-22
       # Beta=0
-      # F-=Beta*np.kron(vel.dot(k_vect),k_vect)
-      F-=Beta
+      F-=Beta*np.kron(vel.dot(k_vect),k_vect)
+      #F-=Beta
       return F
 '''laser sweep function comment out for now
 @njit
@@ -318,8 +318,8 @@ def laser_eq(V,N,t):
 @njit
 def Coulomb_vect(X,N):
       '''
-   takes a vectos of ion positions in Nx1 format and calculates the coulomb force on each ion.
-   returns force as Nx1numpy array of force vectors. should inp   
+   takes a vector of ion positions in Nx1 format and calculates the coulomb force on each ion.
+   returns force as Nx1numpy array of force vectors. should input ?
       
    '''
       # F=np.zeros((N-1,N,3))
@@ -331,7 +331,7 @@ def Coulomb_vect(X,N):
       for i in prange(1,N):
             #calculate the permutation
             perm=X3-np.roll(X3,3*i)
-            #fins the norm of each vector
+            #finds the norm of each vector
             # norm=np.sqrt((perm**2).sum(axis=1)).repeat(3).reshape((N,3))
 
             #calculate colomb forces
@@ -341,6 +341,7 @@ def Coulomb_vect(X,N):
      
 
 @njit
+#Converts new values added into Coulombic forces
 def Coulomb_jit(X,N):
     F=np.zeros((N,3)) 
     x=X.reshape(N,3)
@@ -562,7 +563,7 @@ def leap_frog(N,T,tstep,IC):
       trajectories[:,0]=IC
       pos=np.zeros(3*N)
       vel=np.zeros(3*N)
-      # trajectories[:,0]=np.array(IC,dtype=np.float64)
+      #trajectories[:,0]=np.array(IC,dtype=np.float64)
       ##initialize  acceleration variable . keep track of old/new
       acc=np.zeros((3*N,2))
       t=0
@@ -584,7 +585,7 @@ def leap_frog(N,T,tstep,IC):
           
             ######sum up forces
             #with micromotion
-            acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N))# +laser_vect(vel,N))
+            acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N))+laser_vect(vel,N)
             #without micromotion
             # acc[:,1]=1/mb*(Coulomb_vect(pos,N)  +F_DC(pos,N)+FHYP_pseudo(pos,N) )
 
@@ -678,8 +679,3 @@ The output is all of the derivatives wrt time, for easy input into a diff eq sol
 
 # example code for running simulation
 # P = INT.solve_ivp(lambda t, y: Newton3(t,y,N), [0,Tfinal],y0=IC, t_eval=t2,method='RK45',max_step=t_int)
-
-
-
-
-
